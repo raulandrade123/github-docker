@@ -1,0 +1,17 @@
+# entornos
+venv/
+.venv/
+examenDUM/
+
+# base de datos y carpeta instance
+instance/
+*.db
+
+# caches python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# variables
+.env
