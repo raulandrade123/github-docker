@@ -1,13 +1,16 @@
 from flask import Flask, render_template, redirect, request, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
+import time
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 import os
 
 app = Flask(__name__)
 
 # Configuración
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"   # Base de datos SQLite
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -25,6 +28,19 @@ login_manager.login_view = "login"
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+def wait_for_db(max_retries=20, delay=1):
+    """Espera a que la DB esté lista."""
+    for i in range(max_retries):
+        try:
+            # intenta una consulta trivial
+            with db.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            print("✅ DB lista")
+            return
+        except OperationalError as e:
+            print(f"⏳ DB no lista (intento {i+1}/{max_retries}): {e}")
+            time.sleep(delay)
+    raise RuntimeError("❌ DB no estuvo lista a tiempo")
 
 # Rutas
 @app.route("/")
@@ -85,4 +101,4 @@ def dashboard():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()  # Crea la base de datos y tablas si no existen
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True) 
